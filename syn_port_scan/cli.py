@@ -1,22 +1,43 @@
 import argparse
 import logging
-from typing import TextIO
+import sys
+from typing import Sequence, TextIO
 
 from .log import logger
 from .scan import PortScanner
 
 
 class NameSpace(argparse.Namespace):
+    addresses: list[str]
     debug: bool
     input: TextIO
     output: TextIO
-    ports: list[int]
+    ports: list[int | list[int]]
     timeout: float
     workers: int
 
 
+def parse_port(value: str) -> int | list[int]:
+    try:
+        first, last = value.split("-")
+        return list(range(int(first), int(last) + 1))
+    except ValueError:
+        return int(value)
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "-a",
+        "--address",
+        "--addr",
+        dest="addresses",
+        nargs="*",
+        default=[],
+        help="one or more addresses to scan",
+    )
+
     parser.add_argument(
         "-i",
         "--input",
@@ -36,7 +57,7 @@ def main(argv: list[str] | None = None) -> None:
         "--port",
         dest="ports",
         nargs="+",
-        type=int,
+        type=parse_port,
         help="port",
     )
     parser.add_argument(
@@ -61,7 +82,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(argv, NameSpace())
 
-    addresses = []
+    addresses = list(args.addresses)
 
     if not args.input.isatty():
         addresses.extend(filter(None, map(str.strip, args.input)))
@@ -69,7 +90,13 @@ def main(argv: list[str] | None = None) -> None:
     if not addresses:
         parser.error("nothing to scan")
 
-    ports = args.ports
+    ports = []
+
+    for item in args.ports:
+        if isinstance(item, Sequence):
+            ports.extend(item)
+        else:
+            ports.append(item)
 
     if not ports:
         parser.error("please specify at least one port with --port")
@@ -82,4 +109,9 @@ def main(argv: list[str] | None = None) -> None:
         max_workers=args.workers,
         socket_timeout=args.timeout,
     )
-    scanner.scan(addresses, ports)
+
+    try:
+        scanner.scan(addresses, ports)
+    except BaseException as ex:
+        logger.critical(ex, exc_info=True)
+        sys.exit(1)

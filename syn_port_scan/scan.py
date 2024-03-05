@@ -6,6 +6,7 @@ import itertools
 import random
 import socket
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import closing
 from dataclasses import dataclass, field
@@ -41,18 +42,18 @@ class PortScanner:
             dest_addr=dest_ip,
             dst_port=port,
         )
-        logger.debug(syn)
+        logger.debug("syn packet: %s", syn)
         packet = syn.pack()
         with closing(self.get_socket()) as sock:
             sock.sendto(packet, (dest_ip, 0))
-            logger.debug("sent: %s", packet.hex(" ", 1))
             data = sock.recv(4096)
-            logger.debug("recieve: %s", data.hex(" ", 1))
+            logger.debug("recieve data: %s", data.hex(" ", 1))
             ans = Packet.unpack(data)
-            logger.debug(ans)
+            logger.debug("answer: %s", ans)
             self.output.write(f"{host}:{port}\n")
 
     def scan(self, addresses: list[str], ports: list[int]) -> None:
+        dt = -time.monotonic()
         with ThreadPoolExecutor(self.max_workers) as pool:
             futs = [
                 pool.submit(self.check_port, addr, port)
@@ -62,7 +63,8 @@ class PortScanner:
         for fut in as_completed(futs):
             try:
                 fut.result()
-            except Exception as ex:
-                logger.exception(ex)
+            except (socket.timeout, socket.error) as ex:
+                logger.warning("socket error: %s", ex)
 
-        logger.info("Finished!")
+        dt += time.monotonic()
+        logger.info("finished at %.3fs", dt)
