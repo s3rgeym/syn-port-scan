@@ -236,7 +236,7 @@ class Packet(Base):
             id=0,
             flags=0,
             fragment_offset=0,
-            ttl=255,
+            ttl=64,
             protocol=socket.IPPROTO_TCP,
             csum=0,
             src_addr=src_addr,
