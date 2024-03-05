@@ -1,0 +1,43 @@
+# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+# https://peps.python.org/pep-0621/#example
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dns-client"
+authors = [{name = "Sergey M"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+description = "Fast TCP Syn Port Scanner"
+
+classifiers = [
+  "Topic :: Internet"
+]
+
+requires-python = ">=3.11.7"
+
+dependencies = []
+
+dynamic = ["version"]
+
+# pip install -e '.[dev]'
+# pip install -e '.[test]'
+[project.optional-dependencies]
+test = [
+  "pytest",
+]
+
+dev = [
+  "black",
+  "pylint",
+]
+
+[project.urls]
+Repository = "https://github.com/s3rgeym/syn-tcp-scan.git"
+
+[tool.setuptools.dynamic]
+version = {attr = "syn_port_scan.__version__"}
+
+[project.scripts]
+syn-port-scan = "syn_port_scan.__main__:main"

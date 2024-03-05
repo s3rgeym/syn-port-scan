@@ -1,0 +1,4 @@
+{
+  // почему-то у меня pylint перестал подхватывать конфиг pylintrc
+  "pylint.args": ["--disable=C,R,W"],
+}
