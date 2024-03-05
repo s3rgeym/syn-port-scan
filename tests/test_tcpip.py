@@ -102,9 +102,9 @@ def test_pack_unpack_tcp_header() -> None:
 #         [Time since first frame in this TCP stream: 0.000000000 seconds]
 #         [Time since previous frame in this TCP stream: 0.000000000 seconds]
 
-# SYN-ACK
-
 # 340804c2cf2a74563c2f84ac08004500003cc6b0400040067d20c0a800685db8d8229e3a01bb007a2cff00000000a0027d78f7190000020405b40402080a0a92c14a0000000001030307
+
+# SYN-ACK
 
 # Internet Protocol Version 4, Src: 192.168.0.104, Dst: 93.184.216.34
 #     0100 .... = Version: 4
