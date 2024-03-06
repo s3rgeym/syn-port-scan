@@ -18,3 +18,7 @@ sudo syn-port-scan -a 10.0.0.1 -p 1-2000
 ```bash
 python -m unittest discover
 ```
+
+# WARNING
+
+не работает... я не дописал
