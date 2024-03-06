@@ -19,7 +19,7 @@ from .log import logger
 T = TypeVar("T")
 
 
-class Base(ABC):
+class Segment(ABC):
     @abstractclassmethod
     def unpack(cls: Type[T], data: bytes) -> T:
         raise NotImplementedError
@@ -29,7 +29,7 @@ class Base(ABC):
         raise NotImplementedError
 
 
-class Header(Base):
+class Structure(Segment):
     @property
     @abstractmethod
     def struct(self) -> Struct:
@@ -42,7 +42,7 @@ class Header(Base):
 
 # https://en.wikipedia.org/wiki/Transmission_Control_Protocol#TCP_segment_structure
 @dataclass
-class TCPHeader(Header):
+class TCPHeader(Structure):
     class Flags(IntFlag):
         FIN = 1
         SYN = auto()
@@ -108,9 +108,9 @@ class TCPHeader(Header):
         )
 
 
-# https://en.wikipedia.org/wiki/Internet_Protocol_version_4#Header
+# https://en.wikipedia.org/wiki/Internet_Protocol_version_4#Structure
 @dataclass
-class IPHeader(Header):
+class IPHeader(Structure):
     #   Various Control Flags.
 
     #     Bit 0: reserved, must be zero
@@ -123,7 +123,7 @@ class IPHeader(Header):
 
     # B
     version: int  # version. ip v4 = 4. 4 bits
-    ihl: int  # internet header length in 32 bits words (total bytes / 4). 4 bit
+    ihl: int  # internet Structure length in 32 bits words (total bytes / 4). 4 bit
 
     # B
     dscp: int  # Differentiated Services Code Point or ToS (Type of Service) = 6 bits
@@ -146,7 +146,7 @@ class IPHeader(Header):
     protocol: int  # 1byte
 
     # H
-    csum: int  # 2 bytes. header csum sum
+    csum: int  # 2 bytes. Structure csum sum
 
     # L
     src_addr: str  # 4 bytes
@@ -197,17 +197,17 @@ class IPHeader(Header):
 
 
 # https://stackoverflow.com/a/8845286/2240578
-def cheksum(data: bytes) -> int:
-    rv = 0
-    for i in range(0, len(data), 2):
-        rv += (data[i] << 8) + data[i + 1]
-    rv = (rv >> 16) + (rv & 0xFFFF)
-    # rv += rv >> 16
-    return ~rv & 0xFFFF
+def cheksum(msg: bytes) -> int:
+    s = 0
+    for i in range(0, len(msg), 2):
+        s += (msg[i] << 8) + msg[i + 1]
+    s = (s >> 16) + (s & 0xFFFF)
+    s = ~s & 0xFFFF
+    return s
 
 
 @dataclass
-class Packet(Base):
+class Packet(Segment):
     ip_header: IPHeader
     tcp_header: TCPHeader
 
@@ -234,16 +234,14 @@ class Packet(Base):
             ecn=0,
             total_length=IPHeader.struct.size + TCPHeader.struct.size,
             id=0,
-            flags=0,
+            flags=IPHeader.Flags(0x2),
             fragment_offset=0,
             ttl=64,
             protocol=socket.IPPROTO_TCP,
-            csum=0,
+            csum=0,  # ядро самостоятельно расчитает сумму
             src_addr=src_addr,
             dest_addr=dest_addr,
         )
-
-        iph.csum = cheksum(iph.pack())
 
         tcph = TCPHeader(
             src_port=src_port,
@@ -253,11 +251,11 @@ class Packet(Base):
             data_offset=IPHeader.struct.size // 4,
             reserved=0,
             flags=TCPHeader.Flags.SYN,
-            window_size=65535,
+            window_size=32120,
             csum=0,
             urgent_ptr=0,
         )
 
-        tcph.csum = cheksum(tcph.pack())
-
-        return cls(iph, tcph)
+        syn = cls(iph, tcph)
+        tcph.csum = cheksum(syn.pack())
+        return syn

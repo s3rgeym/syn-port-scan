@@ -40,4 +40,4 @@ Repository = "https://github.com/s3rgeym/syn-tcp-scan.git"
 version = {attr = "syn_port_scan.__version__"}
 
 [project.scripts]
-syn-port-scan = "syn_port_scan.__main__:main"
+syn-port-scan = "syn_port_scan.main:main"

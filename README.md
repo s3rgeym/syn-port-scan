@@ -10,13 +10,11 @@ pipx install syn-port-scan
 syn-port-scan -h
 
 # Requires root priveleges to send SYN packets
-sudo syn-port-scan
+sudo syn-port-scan -a 10.0.0.1 -p 1-2000
 ```
 
-## Development
+# Tests
 
 ```bash
-pytest -vs
+python -m unittest discover
 ```
-
-* Use dotenv zsh plugin to set `PYTHONPATH` and run pytest

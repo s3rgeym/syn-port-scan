@@ -29,7 +29,13 @@ class PortScanner:
     )
 
     def get_socket(self) -> socket.socket:
-        s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
+        try:
+            s = socket.socket(
+                socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP
+            )
+        except socket.error:
+            raise RuntimeError("root privileges required")
+
         s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
         s.settimeout(self.socket_timeout)
         return s
@@ -46,7 +52,7 @@ class PortScanner:
         packet = syn.pack()
         with closing(self.get_socket()) as sock:
             sock.sendto(packet, (dest_ip, 0))
-            data = sock.recv(4096)
+            data = sock.recv(65536)
             logger.debug("recieve data: %s", data.hex(" ", 1))
             ans = Packet.unpack(data)
             logger.debug("answer: %s", ans)

@@ -79,6 +79,7 @@ def main(argv: list[str] | None = None) -> None:
         "--debug",
         default=False,
         action="store_true",
+        help="show debug information",
     )
     args = parser.parse_args(argv, NameSpace())
 
