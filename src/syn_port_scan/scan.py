@@ -7,14 +7,15 @@ import random
 import socket
 import sys
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from contextlib import closing
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TextIO
+from typing import Iterator, TextIO
 
 from .log import logger
-from .tcpip import Packet
-from .utils import get_local_ip
+from .packet import IpHeader, TcpHeader, TcpPacket
+from .utils import get_free_port, get_local_ip
 
 
 @dataclass
@@ -28,35 +29,50 @@ class PortScanner:
         init=False, repr=False, default_factory=get_local_ip
     )
 
-    def get_socket(self) -> socket.socket:
+    @contextmanager
+    def get_socket(self) -> Iterator[socket.socket]:
         try:
-            s = socket.socket(
+            with socket.socket(
                 socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP
-            )
-        except socket.error:
-            raise RuntimeError("root privileges required")
-
-        s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-        s.settimeout(self.socket_timeout)
-        return s
+            ) as sock:
+                sock.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+                # sock.settimeout(self.socket_timeout)
+                yield sock
+        except PermissionError as ex:
+            raise RuntimeError(
+                "Root privileges are required to create the socket."
+            ) from ex
 
     def check_port(self, host: str, port: int):
-        dest_ip = socket.gethostbyname(host)
-        syn = Packet.make_syn(
+        resolved_ip = socket.gethostbyname(host)
+        # src_port = get_free_port()
+        syn = TcpPacket.make_syn(
             src_addr=self.local_ip,
-            src_port=random.randint(20000, 30000),
-            dest_addr=dest_ip,
+            src_port=random.randint(30000, 32000),
+            src_mac=uuid.getnode(),
+            dst_addr=resolved_ip,
             dst_port=port,
+            dst_mac=0,
         )
-        logger.debug("syn packet: %s", syn)
-        packet = syn.pack()
-        with closing(self.get_socket()) as sock:
-            sock.sendto(packet, (dest_ip, 0))
-            data = sock.recv(65536)
-            logger.debug("recieve data: %s", data.hex(" ", 1))
-            ans = Packet.unpack(data)
-            logger.debug("answer: %s", ans)
-            self.output.write(f"{host}:{port}\n")
+        logger.debug("crafted packet: %s", syn)
+        with self.get_socket() as sock:
+            raw = syn.pack()[14:]
+            logger.debug(raw.hex(" "))
+            sock.sendto(syn.pack()[14:], (resolved_ip, 0))
+            while True:
+                data = sock.recv(65535)
+                # logger.debug("recieve data: %s", data.hex(" ", 1))
+                iph = IpHeader.unpack(data)
+                tcph = TcpHeader.unpack(data[20:])
+
+                if tcph.flags == (TcpHeader.Flags.SYN | TcpHeader.Flags.ACK):
+
+                    logger.debug(iph)
+                    logger.debug(tcph)
+
+                # ans = TcpPacket.unpack(data)
+                # logger.debug("answer: %s", ans)
+                # self.output.write(f"{host}:{port}\n")
 
     def scan(self, addresses: list[str], ports: list[int]) -> None:
         dt = -time.monotonic()
